@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MDR Contact Tracing — Prototype (Enhanced)</title>
+  <style>
+    :root{--accent:#d62828;--accent-dark:#b91c1c;--bg:#f4f6fb;--card:#ffffff;--muted:#6b7280}
+    *{box-sizing:border-box;font-family:Inter,Segoe UI,Roboto,Arial}
+    body{margin:0;background:var(--bg);color:#0f1724}
+    header{background:linear-gradient(90deg,var(--accent),var(--accent-dark));color:white;padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+    header h1{font-size:18px;margin:0}
+    header .meta{font-size:13px;opacity:.95}
+    .container{display:flex;gap:18px;padding:18px}
+    aside{width:280px}
+    .card{background:var(--card);border-radius:10px;padding:14px;box-shadow:0 6px 18px rgba(12,20,40,0.06)}
+    .nav a{display:block;padding:10px 12px;border-radius:8px;color:#0f1724;text-decoration:none;margin-bottom:6px}
+    .nav a.active{background:linear-gradient(90deg,#fff5f5, #fff0f0);border:1px solid rgba(214,40,40,0.08)}
+    main{flex:1}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+    .big{grid-column:span 2}
+    .stat{display:flex;flex-direction:column}
+    .stat .num{font-size:20px;font-weight:700}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    button{background:var(--accent);color:white;border:0;padding:8px 12px;border-radius:8px;cursor:pointer}
+    .btn-muted{background:#111827;color:white}
+    input[type=file]{display:none}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px;border-bottom:1px solid #eef2f7;text-align:left;font-size:14px}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#fff8f0;color:#b45309;border:1px solid rgba(180,83,9,0.08)}
+    .alert{background:#fff1f1;color:#991b1b;padding:10px;border-radius:8px;margin-bottom:10px;border:1px solid rgba(153,27,27,0.06)}
+    .map{height:320px;border-radius:8px;background:linear-gradient(180deg,#ffeeee, #ffffff);display:flex;align-items:center;justify-content:center;color:var(--muted);overflow:hidden}
+    .footer-note{font-size:12px;color:var(--muted);margin-top:10px}
+    .highlight{background:#fff4f0;border-left:4px solid #fb923c;padding:8px;border-radius:6px}
+    .search{display:flex;gap:8px}
+    .search input{flex:1;padding:8px;border-radius:8px;border:1px solid #e6edf3}
+    .badge{display:inline-block;padding:4px 8px;background:#ffeeee;color:var(--accent);border-radius:999px;font-size:12px}
+    .modal{position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(2,6,23,0.4);display:flex;align-items:center;justify-content:center}
+    .modal .box{width:480px;background:white;padding:18px;border-radius:10px}
+    .form-row{display:flex;gap:8px}
+    .form-row input{flex:1;padding:8px;border-radius:8px;border:1px solid #eef2f7}
+    .small{font-size:13px;color:var(--muted)}
+    @media(max-width:900px){.grid{grid-template-columns:1fr}.aside{display:none}aside{display:none}.container{flex-direction:column;padding:12px}}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>MDR Contact Tracing </h1>
+    <div class="meta">Hospital Demo  <span id="envTag"> </span></div>
+  </header>
+
+  <div class="container">
+    <aside>
+      <div class="card nav">
+        <a href="#" class="active" onclick="showSection('dashboard')">Dashboard</a>
+        <a href="#" onclick="showSection('contacts')">Contacts</a>
+        <a href="#" onclick="showSection('alerts')">Alerts</a>
+        <a href="#" onclick="showSection('upload')">Upload EHR / Lab</a>
+        <a href="#" onclick="showSection('settings')">Settings</a>
+      </div>
+
+      <div style="height:12px"></div>
+      <div class="card">
+        <h3 style="margin:0 0 8px 0">Quick Actions</h3>
+        <div class="controls">
+          <button onclick="simulateInfection()">Simulate MDR case</button>
+          <label style="display:inline-block">
+            <input id="csvfile" type="file" accept=".csv" onchange="loadCSV(this)" />
+            <button style="background:var(--accent-dark)">Upload CSV</button>
+          </label>
+          <button onclick="exportContacts()" class="btn-muted">Export CSV</button>
+          <button onclick="saveToLocal()" style="background:#0ea5a4">Save (local)</button>
+          <button onclick="loadFromLocal()" style="background:#f59e0b">Load (local)</button>
+        </div>
+        <div class="footer-note">Tip: Upload CSV or use sample data. Save to localStorage to persist between sessions on this browser.</div>
+      </div>
+
+      <div style="height:12px"></div>
+      <div class="card">
+        <h4 style="margin:0 0 8px 0">Current Alert</h4>
+        <div id="currentAlert" class="highlight">No active alerts</div>
+        <div style="margin-top:8px"><button onclick="clearAlerts()" style="background:#ef4444">Clear Alerts</button></div>
+      </div>
+    </aside>
+
+    <main>
+      <section id="dashboard" class="card">
+        <div class="grid">
+          <div class="stat">
+            <div class="small">Total Records</div>
+            <div class="num" id="totalPatients">0</div>
+          </div>
+          <div class="stat">
+            <div class="small">Active Alerts</div>
+            <div class="num" id="activeAlerts">0</div>
+          </div>
+          <div class="stat">
+            <div class="small">High-Risk Contacts</div>
+            <div class="num" id="highRisk">0</div>
+          </div>
+
+          <div class="card big" style="padding:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <h3 style="margin:0">Contact Map (simulated)</h3>
+              <div class="small">Drag nodes to rearrange (prototype)</div>
+            </div>
+            <div class="map" id="contactMap">Graphical contact network will appear here (simulated nodes)</div>
+            <div class="footer-note">Nodes = patients / staff. Click a node to view contact chain.</div>
+          </div>
+
+          <div class="card">
+            <h4 style="margin:0 0 8px 0">Latest Alerts</h4>
+            <div id="alertsList">No alerts</div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px" class="card">
+          <h3 style="margin-top:0">Search & Filter Contacts</h3>
+          <div class="search">
+            <input id="q" placeholder="Search by name, ward, room..." oninput="renderContacts()" />
+            <button onclick="renderContacts()">Search</button>
+            <select id="sortBy" onchange="renderContacts()" style="padding:8px;border-radius:8px;border:1px solid #eef2f7">
+              <option value="ts_desc">Recent</option>
+              <option value="name_asc">Name A→Z</option>
+              <option value="risk_desc">High Risk First</option>
+            </select>
+          </div>
+          <div style="height:12px"></div>
+          <div id="contactsTableContainer"></div>
+        </div>
+      </section>
+
+      <section id="contacts" class="card" style="display:none; margin-top:12px">
+        <h2 style="margin-top:0">Contacts</h2>
+        <div id="contactsFull"></div>
+      </section>
+
+      <section id="alerts" class="card" style="display:none; margin-top:12px">
+        <h2 style="margin-top:0">Alerts & Containment Suggestions</h2>
+        <div id="alertsDetailed">No alerts</div>
+      </section>
+
+      <section id="upload" class="card" style="display:none; margin-top:12px">
+        <h2 style="margin-top:0">Upload EHR / Lab CSV</h2>
+        <p class="footer-note">CSV columns: id,name,role,ward,room,timestamp(ISO). Quoted fields supported.</p>
+        <input type="file" id="uploader" accept=".csv" onchange="loadCSV(this)" />
+        <div id="uploadResult" style="margin-top:8px"></div>
+      </section>
+
+      <section id="settings" class="card" style="display:none; margin-top:12px">
+        <h2 style="margin-top:0">Settings</h2>
+        <div style="margin-top:8px">
+          <label>Alert sensitivity (hours): <input id="sensitivity" type="number" value="48" style="width:80px"/></label>
+          <div class="footer-note">Contacts within 'sensitivity' hours of an MDR case are flagged as high-risk.</div>
+        </div>
+        <div style="margin-top:10px">
+          <button onclick="clearAllData()" style="background:#ef4444">Clear all local data</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Edit Modal (hidden) -->
+  <div id="editModal" class="modal" style="display:none">
+    <div class="box">
+      <h3>Edit Contact</h3>
+      <div style="margin-top:8px" class="form-row"><input id="e_name" placeholder="Name" /></div>
+      <div style="margin-top:8px" class="form-row"><input id="e_role" placeholder="Role" /><input id="e_ward" placeholder="Ward" /></div>
+      <div style="margin-top:8px" class="form-row"><input id="e_room" placeholder="Room" /><input id="e_ts" placeholder="Timestamp (ISO)" /></div>
+      <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end"><button onclick="saveEdit()">Save</button><button onclick="closeModal()" style="background:#6b7280">Cancel</button></div>
+    </div>
+  </div>
+
+  <script>
+    // enhanced prototype JS
+    let contacts = [];
+    let alerts = [];
+    let editingId = null;
+
+    // sample seed data (used if no local data)
+    const SAMPLE = [
+      {id:'P001',name:'Asha Singh',role:'patient',ward:'A',room:'101',ts:'2025-11-08T10:00:00'},
+      {id:'S001',name:'Dr. R. Kumar',role:'staff',ward:'A',room:'101',ts:'2025-11-08T10:30:00'},
+      {id:'P002',name:'Vikram Patel',role:'patient',ward:'A',room:'102',ts:'2025-11-09T09:00:00'},
+      {id:'N001',name:'Nurse Meera',role:'staff',ward:'A',room:'103',ts:'2025-11-09T09:15:00'},
+      {id:'P003',name:'Sunita Rao',role:'patient',ward:'B',room:'201',ts:'2025-11-09T11:00:00'},
+      {id:'P004',name:'Rohit Joshi',role:'patient',ward:'A',room:'102',ts:'2025-11-10T08:50:00'}
+    ];
+
+    function showSection(id){
+      document.querySelectorAll('main section').forEach(s=>s.style.display='none');
+      document.getElementById(id).style.display='block';
+      document.querySelectorAll('.nav a').forEach(a=>a.classList.remove('active'));
+      document.querySelector('.nav a[onclick*="'+id+'?"]');
+    }
+
+    function init(){
+      // try load from localStorage
+      const raw = localStorage.getItem('mdr_contacts_v2');
+      if(raw){
+        try{ const obj = JSON.parse(raw); contacts = obj.contacts||SAMPLE; alerts = obj.alerts||[]; }catch(e){ contacts = SAMPLE.slice(); }
+      } else { contacts = SAMPLE.slice(); }
+      renderStats(); renderContacts(); renderContactMap(); renderAlerts();
+    }
+
+    function renderStats(){
+      document.getElementById('totalPatients').innerText = contacts.length;
+      document.getElementById('activeAlerts').innerText = alerts.length;
+      document.getElementById('highRisk').innerText = contacts.filter(c=>c.highRisk).length;
+      document.getElementById('currentAlert').innerText = alerts.length? alerts[0].message : 'No active alerts';
+    }
+
+    // improved CSV parsing supporting quoted fields
+    function parseCSVText(text){
+      const lines = text.split(/\r?\n/).filter(l=>l.trim());
+      const rows = [];
+      for(let i=0;i<lines.length;i++){
+        const line = lines[i];
+        const cols = [];
+        let cur=''; let inQuotes=false;
+        for(let j=0;j<line.length;j++){
+          const ch=line[j];
+          if(ch==='"') { inQuotes = !inQuotes; continue; }
+          if(ch===',' && !inQuotes){ cols.push(cur); cur=''; } else cur += ch;
+        }
+        cols.push(cur);
+        rows.push(cols);
+      }
+      return rows;
+    }
+
+    function loadCSV(input){
+      const file = input.files ? input.files[0] : null;
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = e=>{
+        const rows = parseCSVText(e.target.result);
+        // assume header exists
+        const newData = [];
+        for(let i=1;i<rows.length;i++){
+          const cols = rows[i];
+          if(cols.length<5) continue;
+          newData.push({id:cols[0].trim()||generateId(), name:cols[1].trim(), role:cols[2].trim()||'patient', ward:cols[3].trim(), room:cols[4].trim(), ts:cols[5]?cols[5].trim():new Date().toISOString()});
+        }
+        contacts = contacts.concat(newData);
+        document.getElementById('uploadResult').innerText = `Loaded ${newData.length} rows`;
+        renderStats(); renderContacts(); renderContactMap(); saveToLocal();
+      };
+      reader.readAsText(file);
+    }
+
+    function generateId(){ return 'X'+Math.random().toString(36).slice(2,8).toUpperCase(); }
+
+    function renderContacts(){
+      const q = (document.getElementById('q').value||'').toLowerCase();
+      const sortBy = document.getElementById('sortBy').value;
+      let rows = contacts.filter(c=> (c.name+' '+c.ward+' '+c.room+' '+(c.role||'')).toLowerCase().includes(q));
+      if(sortBy==='ts_desc') rows.sort((a,b)=> new Date(b.ts)-new Date(a.ts));
+      if(sortBy==='name_asc') rows.sort((a,b)=> a.name.localeCompare(b.name));
+      if(sortBy==='risk_desc') rows.sort((a,b)=> (b.highRisk?1:0)-(a.highRisk?1:0));
+
+      let html = '<table><thead><tr><th>ID</th><th>Name</th><th>Role</th><th>Ward</th><th>Room</th><th>Timestamp</th><th>Risk</th><th>Actions</th></tr></thead><tbody>';
+      for(const r of rows){
+        html += `<tr><td>${r.id}</td><td>${r.name}</td><td>${r.role}</td><td>${r.ward}</td><td>${r.room}</td><td>${r.ts}</td><td>${r.highRisk?'<span class="pill">HIGH</span>':'-'}</td><td><button onclick="openEdit('${r.id}')">Edit</button> <button onclick="markIndex('${r.id}')">Mark MDR</button></td></tr>`;
+      }
+      html += '</tbody></table>';
+      document.getElementById('contactsTableContainer').innerHTML = html;
+      document.getElementById('contactsFull').innerHTML = html;
+    }
+
+    function renderContactMap(){
+      const map = document.getElementById('contactMap'); map.innerHTML='';
+      const svgNS='http://www.w3.org/2000/svg'; const svg=document.createElementNS(svgNS,'svg'); svg.setAttribute('width','100%'); svg.setAttribute('height','320');
+      const positions = [];
+      const w = map.clientWidth || 800; const h = 320; const cols = Math.ceil(Math.sqrt(contacts.length));
+      contacts.forEach((c,i)=>{ const col = i % cols; const row = Math.floor(i/cols); const x = 30 + col*( (w-60)/Math.max(1,cols-1) ); const y = 30 + row*90; positions.push([x,y]); });
+      contacts.forEach((c,i)=>{
+        const g = document.createElementNS(svgNS,'g');
+        const x = positions[i] ? positions[i][0] : 40; const y = positions[i] ? positions[i][1] : 40;
+        const rect = document.createElementNS(svgNS,'rect'); rect.setAttribute('x',x-28); rect.setAttribute('y',y-20); rect.setAttribute('width',56); rect.setAttribute('height',36); rect.setAttribute('rx',8);
+        rect.setAttribute('fill', c.highRisk? '#fff1f1' : '#eef7ff'); rect.setAttribute('stroke','#b91c1c'); rect.setAttribute('stroke-width', c.highRisk?2:1);
+        const text = document.createElementNS(svgNS,'text'); text.setAttribute('x',x); text.setAttribute('y',y+5); text.setAttribute('text-anchor','middle'); text.setAttribute('font-size','11'); text.textContent = c.name.split(' ')[0];
+        g.appendChild(rect); g.appendChild(text); g.style.cursor='pointer'; g.onclick = ()=>{ showContactDetails(c); openEdit(c.id); };
+        svg.appendChild(g);
+      });
+      map.appendChild(svg);
+    }
+
+    function showContactDetails(c){ alert('Contact: '+c.name+' (ID:'+c.id+')\nWard: '+c.ward+' Room: '+c.room+'\nTimestamp: '+c.ts+'\nHighRisk: '+(c.highRisk? 'YES' : 'NO')); }
+
+    function markIndex(id){ const indexCase = contacts.find(c=>c.id===id); if(!indexCase) return; indexCase.mdr = true; const sens = parseInt(document.getElementById('sensitivity').value||48); const sensMs = sens*3600*1000; const tIndex = new Date(indexCase.ts).getTime(); contacts.forEach(c=>{ const dt = Math.abs(new Date(c.ts).getTime() - tIndex); if(dt<=sensMs && c.id!==indexCase.id){ c.highRisk = true; } }); const message = `MDR case detected: ${indexCase.name} (ID: ${indexCase.id}). Contacts within ${sens} hours flagged.`; alerts.unshift({time:new Date().toISOString(), message, indexId:indexCase.id, resolved:false}); renderStats(); renderContactMap(); renderAlerts(); renderContacts(); saveToLocal(); }
+
+    function simulateInfection(){ const idx = Math.floor(Math.random()*contacts.length); markIndex(contacts[idx].id); }
+
+    function renderAlerts(){ const list = document.getElementById('alertsList'); if(alerts.length===0){ list.innerHTML='No alerts'; document.getElementById('alertsDetailed').innerHTML='No alerts'; return; } let html=''; html += '<div style="display:flex;flex-direction:column;gap:8px">'; alerts.forEach((a, i)=>{ html += `<div class="alert"><strong>${a.message}</strong><div class="small">${a.time}</div><div style="margin-top:8px"><button onclick="resolveAlert(${i})" style="background:#10b981">Mark Resolved</button> <button onclick="deleteAlert(${i})" style="background:#ef4444">Delete</button></div></div>`; }); html += '</div>'; list.innerHTML = html; let det = '<h3>Containment Suggestions</h3>'; det += '<ol><li>Isolate the index patient (room closure)</li><li>Test all high-risk contacts immediately (culture + sensitivity)</li><li>Increase PPE and limit staff movement between wards</li><li>Deep-clean affected rooms and shared equipment</li></ol>'; document.getElementById('alertsDetailed').innerHTML = det; document.getElementById('envTag').innerText = 'Prototype v1 (local) — saved'; }
+
+    function resolveAlert(i){ if(alerts[i]) alerts[i].resolved = true; renderAlerts(); saveToLocal(); }
+    function deleteAlert(i){ alerts.splice(i,1); renderAlerts(); saveToLocal(); }
+    function clearAlerts(){ alerts = []; renderAlerts(); saveToLocal(); }
+
+    // Edit modal
+    function openEdit(id){ const c = contacts.find(x=>x.id===id); if(!c) return; editingId = id; document.getElementById('e_name').value = c.name; document.getElementById('e_role').value = c.role; document.getElementById('e_ward').value = c.ward; document.getElementById('e_room').value = c.room; document.getElementById('e_ts').value = c.ts; document.getElementById('editModal').style.display='flex'; }
+    function closeModal(){ document.getElementById('editModal').style.display='none'; editingId=null; }
+    function saveEdit(){ if(!editingId) return; const c = contacts.find(x=>x.id===editingId); c.name = document.getElementById('e_name').value; c.role = document.getElementById('e_role').value; c.ward = document.getElementById('e_ward').value; c.room = document.getElementById('e_room').value; c.ts = document.getElementById('e_ts').value; closeModal(); renderContacts(); renderContactMap(); saveToLocal(); }
+
+    // persistence
+    function saveToLocal(){ const obj = {contacts, alerts, savedAt:new Date().toISOString()}; localStorage.setItem('mdr_contacts_v2', JSON.stringify(obj)); document.getElementById('envTag').innerText = 'Prototype v1 (local saved)'; }
+    function loadFromLocal(){ const raw = localStorage.getItem('mdr_contacts_v2'); if(!raw) return alert('No saved data'); try{ const obj = JSON.parse(raw); contacts = obj.contacts||contacts; alerts = obj.alerts||alerts; renderContacts(); renderContactMap(); renderAlerts(); renderStats(); alert('Loaded saved data'); }catch(e){ alert('Load failed'); } }
+    function clearAllData(){ if(confirm('Clear ALL local data?')){ localStorage.removeItem('mdr_contacts_v2'); contacts = SAMPLE.slice(); alerts=[]; renderContacts(); renderContactMap(); renderAlerts(); renderStats(); alert('Cleared'); } }
+
+    function exportContacts(){ const rows = [['id','name','role','ward','room','ts','highRisk']]; contacts.forEach(c=>rows.push([c.id,c.name,c.role,c.ward,c.room,c.ts,c.highRisk?1:0])); const csv = rows.map(r=>r.map(v=> typeof v==='string' && v.includes(',') ? '"'+v+'"' : v).join(',')).join('\n'); const blob = new Blob([csv],{type:'text/csv'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='contacts_export.csv'; a.click(); }
+
+    // small helper for direct mark as MDR from list
+    function markIndexById(id){ markIndex(id); }
+
+    window.onload = init; window.onresize = renderContactMap;
+  </script>
+</body>
+</html>

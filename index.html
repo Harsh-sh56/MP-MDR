@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MDR — Clean Front</title>
+  <style>
+    :root{--accent:#c81e1e;--bg:#0f1724;--card:#0b1220;--muted:#9aa3ad}
+    *{box-sizing:border-box;font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071428,#0f1724);color:#e6eef6}
+    .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+    .panel{width:min(980px,96%);border-radius:16px;overflow:hidden;display:flex;box-shadow:0 30px 80px rgba(2,6,23,0.6)}
+
+    /* left visual */
+    .visual{flex:1;background:linear-gradient(180deg,#071428 0%, #0b1b2b 60%);padding:48px;display:flex;flex-direction:column;justify-content:center;gap:18px}
+    .logo{width:64px;height:64;border-radius:14px;background:linear-gradient(180deg,var(--accent),#a01616);display:flex;align-items:center;justify-content:center;font-weight:800;color:white;font-size:20px}
+    h1{margin:0;font-size:36px;line-height:1.02}
+    p.lead{margin:0;color:var(--muted);max-width:56ch}
+    .stats{display:flex;gap:12px;margin-top:12px}
+    .stat{background:rgba(255,255,255,0.03);padding:10px 12px;border-radius:10px;font-weight:700}
+
+    /* right auth — updated to Spotify-like pills */
+    .auth{width:360px;background:linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.02));padding:20px;display:flex;flex-direction:column;gap:12px;align-items:stretch}
+    .auth h3{margin:0;color:var(--accent)}
+    .or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px}
+    .hr{height:1px;background:linear-gradient(90deg,transparent,#1c2936,transparent);flex:1}
+    input{flex:1;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:rgba(255,255,255,0.02);color:#e6eef6}
+
+    /* pill buttons like Spotify */
+    .pill{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:999px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:#fff;font-weight:700;cursor:pointer}
+    .pill svg{width:18px;height:18px}
+    .pill + .pill{margin-top:12px}
+
+    .guest{margin-top:14px;padding:12px;border-radius:999px;background:#fff;color:#000;font-weight:800;border:0;cursor:pointer}
+    .small{font-size:13px;color:var(--muted);text-align:center;margin-top:8px}
+
+    footer{padding:14px;text-align:center;color:var(--muted);font-size:13px}
+    @media(max-width:880px){.panel{flex-direction:column}.visual{padding:28px}.auth{width:100%}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <div class="visual">
+        <div style="display:flex;align-items:center;gap:14px"><div class="logo">M</div><div style="font-weight:700">MDR Tracer</div></div>
+        <h1>Detect exposures. Stop outbreaks.</h1>
+        <p class="lead">A focused tool for hospital infection control — minimal, fast and reliable. Use live alerts, visual contact maps, and lab-linked tracing to act before things escalate.</p>
+        <div class="stats">
+          <div class="stat">Fast alerts</div>
+          <div class="stat">Simple UI</div>
+          <div class="stat">Local demo</div>
+        </div>
+      </div>
+
+      <div class="auth" role="region" aria-label="Authentication">
+        <h3>Welcome back</h3>
+
+        <label class="small">Email or username</label>
+        <input id="userfield" placeholder="you@hospital.local" />
+        <button class="pill" onclick="enterPass()"><span style="flex:1;text-align:left">Continue</span></button>
+
+        <div style="display:flex;align-items:center;gap:10px;margin-top:12px"><div class="hr"></div><div class="or">or</div><div class="hr"></div></div>
+
+        <!-- Spotify-style pill social buttons -->
+        <button class="pill" onclick="soon('phone')">📱 Continue with phone number</button>
+        <button class="pill" onclick="soon('google')">G  Continue with Google</button>
+        <button class="pill" onclick="soon('facebook')">f  Continue with Facebook</button>
+        <button class="pill" onclick="soon('apple')"><svg width="18" height="18" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M16.5 1.5c0 1-.4 2-1.1 2.8-.8.9-2 1.5-3.1 1.4-.1-1.2.4-2.4 1.2-3.2.8-.9 2-1.5 3-1zM20.8 14.3c-.1-2.6 1.1-4.5 3-5.9-1.1-1.7-3-2.7-5.2-2.7-2.5 0-4 1.3-5.4 1.3s-3.3-1.3-5.6-1.3c-3.2 0-6.7 2.4-6.7 7.5 0 3.9 3 9.3 6.6 9.3 1.7 0 2.9-1.1 5.1-1.1 2.3 0 3.3 1.1 5.5 1.1 3.4 0 5.6-3.9 5.6-9.2z"/></svg> Continue with Apple</button>
+
+        <button class="guest" onclick="guest()">Continue as guest</button>
+
+        <div class="small">Don't have an account? <strong style="color:#fff">Sign up</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>MDR Tracer • Demo</footer>
+
+<style>
+/* loader modal */
+#authLoader{display:none;position:fixed;inset:0;background:rgba(2,6,23,0.7);z-index:9999;align-items:center;justify-content:center}
+#authBox{background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02));padding:18px 22px;border-radius:12px;color:#fff;text-align:center;min-width:260px;backdrop-filter:blur(6px)}
+.spinner{width:48px;height:48px;border-radius:50%;border:4px solid rgba(255,255,255,0.12);border-top-color:#fff;animation:spin 1s linear infinite;margin:8px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+
+<!-- loader markup -->
+<div id="authLoader">
+  <div id="authBox">
+    <div class="spinner"></div>
+    <div style="font-weight:700;margin-top:6px">Authenticating…</div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.85);margin-top:6px">Please wait — redirecting to dashboard</div>
+  </div>
+</div>
+
+<script>
+  // Redirect target (assistant-uploaded file path converted to file URL)
+  const DASH = "file:///C:/Users/harsh/OneDrive/Desktop/dashboard.html";
+
+  function enterPass() {
+    const v = document.getElementById('userfield').value.trim();
+    if (!v) return alert('Please enter your email or username');
+    alert('Password step — coming soon');
+  }
+
+  function soon(m) {
+    alert(m + ' login coming soon');
+  }
+
+  function showLoader(duration = 1200) {
+    const loader = document.getElementById('authLoader');
+    loader.style.display = 'flex';
+    loader.style.opacity = 0;
+    requestAnimationFrame(() => (loader.style.opacity = 1));
+    setTimeout(() => {
+      // perform final redirect
+      window.location.href = DASH;
+    }, duration);
+  }
+
+  function guest() {
+    showLoader(1400);
+  }
+</script>
+</body>
+</html>
